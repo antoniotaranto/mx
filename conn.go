@@ -29,13 +29,14 @@ var (
 type Conn struct {
 	Info // содержит информацию о текущем соединении
 
-	conn          net.Conn     // сокетное соединение с сервером MX
-	counter       uint32       // счетчик отосланных команд
-	keepAlive     *time.Timer  // таймер для отсылки keep-alive сообщений
-	err           error        // содержит ошибку соединения
-	mu            sync.RWMutex // для управления таймером
-	waitResponses sync.Map     // каналы ожидания ответов по номерам отосланных команд
-	eventHandlers sync.Map     // зарегистрированные обработчики событий
+	conn          net.Conn      // сокетное соединение с сервером MX
+	counter       uint32        // счетчик отосланных команд
+	keepAlive     *time.Timer   // таймер для отсылки keep-alive сообщений
+	err           error         // содержит ошибку соединения
+	done          chan struct{} // канал для уведомления о закрытии соединения
+	mu            sync.RWMutex  // для управления таймером
+	waitResponses sync.Map      // каналы ожидания ответов по номерам отосланных команд
+	eventHandlers sync.Map      // зарегистрированные обработчики событий
 }
 
 // Connect устанавливает соединение с сервером MX и возвращает его.
@@ -48,7 +49,10 @@ func Connect(host string, login Login) (*Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	var mx = &Conn{conn: conn}
+	var mx = &Conn{
+		conn: conn,
+		done: make(chan struct{}),
+	}
 	go mx.reading() // запускаем процесс чтения ответов от сервера
 	// авторизуем пользователя
 	// без этого шага никакие команды сервером все равно не обрабатываются
@@ -59,10 +63,27 @@ func Connect(host string, login Login) (*Conn, error) {
 	return mx, nil
 }
 
+// setError сохраняет первую ошибку соединения в свойствах.
+func (c *Conn) setError(err error) {
+	c.mu.Lock()
+	if c.err == nil {
+		c.err = err        // запоминаем ошибку
+		c.keepAlive.Stop() // останавливаем таймер отправки keepAlive сообщений
+	}
+	c.mu.Unlock()
+}
+
 // Close закрывает соединение с сервером.
 func (c *Conn) Close() error {
 	csta(false, 0, []byte("<close/>"))
-	return c.conn.Close()
+	var err = c.conn.Close() // закрываем соединение
+	c.setError(err)          // запоминаем ошибку
+	return err
+}
+
+// Done возвращает канал для уведомления о закрытии.
+func (c *Conn) Done() <-chan struct{} {
+	return c.done
 }
 
 // send формирует и отправляет команду на сервер. Возвращает номер отосланной
@@ -100,6 +121,7 @@ func (c *Conn) send(cmd interface{}) (uint32, error) {
 	buffers.Put(buf)                  // освобождаем буфер
 	csta(false, uint16(counter), xmlData)
 	if err != nil {
+		c.setError(err) // запоминаем ошибку
 		return 0, err
 	}
 	// откладываем посылку keepAlive
@@ -236,10 +258,7 @@ func (c *Conn) reading() error {
 			handler <- resp
 		}
 	}
-	c.mu.Lock()
-	c.keepAlive.Stop() // останавливаем таймер отправки keepAlive сообщений
-	c.err = err        // сохраняем описание ошибки
-	c.mu.Unlock()
+	c.setError(err) // запоминаем ошибку
 	// закрываем все обработчики
 	c.eventHandlers.Range(func(event, list interface{}) bool {
 		c.eventHandlers.Delete(event) // удаляем все обработчики
@@ -249,7 +268,7 @@ func (c *Conn) reading() error {
 		}
 		return true
 	})
-
+	close(c.done) // закрываем канал с уведомлением о закрытии
 	return err
 }
 
@@ -271,7 +290,9 @@ func (c *Conn) sendKeepAlive() {
 	// заранее и приведено в бинарный вид команды
 	if _, err := c.conn.Write([]byte{0x00, 0x00, 0x00, 0x15, 0x30, 0x30, 0x30,
 		0x30, 0x3c, 0x6b, 0x65, 0x65, 0x70, 0x61, 0x6c, 0x69, 0x76, 0x65, 0x20,
-		0x2f, 0x3e}); err == nil {
+		0x2f, 0x3e}); err != nil {
+		c.setError(err) // запоминаем ошибку
+	} else {
 		// взводим таймер отправки следующего keepAlive сообщения
 		c.mu.Lock()
 		c.keepAlive.Reset(KeepAliveDuration)
