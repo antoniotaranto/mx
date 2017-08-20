@@ -276,6 +276,6 @@ func (c *Conn) sendKeepAlive() {
 		c.mu.Lock()
 		c.keepAlive.Reset(KeepAliveDuration)
 		c.mu.Unlock()
-		csta(false, 0, []byte("<keepalive/>"))
+		// csta(false, 0, []byte("<keepalive/>"))
 	}
 }
