@@ -58,6 +58,7 @@ func (ehs *eventHandlers) Close() {
 		for handler := range list.(mapOfHandlerChan) {
 			handlers[handler] = struct{}{}
 		}
+		ehs.handlers.Delete(event) // так удаление будет быстрее
 		return true
 	})
 	// и только теперь отсылаем в них пустые ответы, чтобы они могли корректно
