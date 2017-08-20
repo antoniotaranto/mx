@@ -2,11 +2,12 @@ package mx
 
 import (
 	"fmt"
+	"os"
 	"testing"
-	"time"
 )
 
-func TestDone(t *testing.T) {
+func TestConn_Handle(t *testing.T) {
+	SetCSTALog(os.Stdout, Lcolor)
 	conn, err := Connect("89.185.246.134:7778", Login{
 		UserName: "peterh",
 		Password: "981211",
@@ -17,25 +18,20 @@ func TestDone(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() {
-		if err := conn.Close(); err != nil {
-			fmt.Println("Close error:", err.Error())
-		}
-	}()
+	defer conn.Close()
+	conn.MonitorStart("")
+	defer conn.MonitorStop(0)
 
 	go func() {
-		<-conn.Done()
-		fmt.Println("Connection done:", conn.Error())
-		conn.Close()
-		fmt.Println("Connection done 2:", conn.Error())
+		err = conn.Handle(func(resp *Response) error {
+			fmt.Println("event:", resp.String())
+			return nil
+		}, "presence")
+		if err != nil {
+			t.Error(err)
+		}
 	}()
 
-	for {
-		if err = conn.Send("<keepalive/>"); err != nil {
-			fmt.Println("Send error:", err.Error())
-			break
-		}
-		time.Sleep(time.Second * 20)
-	}
-	fmt.Println("All finished:", conn.Error())
+	<-conn.Done()
+	fmt.Println("finish")
 }

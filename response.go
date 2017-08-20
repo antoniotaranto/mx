@@ -15,6 +15,3 @@ func (r *Response) String() string { return r.Name }
 func (r *Response) Decode(v interface{}) error {
 	return xml.Unmarshal(r.data, v)
 }
-
-// responseChan описывает канал для получения ответов.
-type responseChan = chan *Response

@@ -27,16 +27,14 @@ var (
 
 // Conn описывает соединение с сервером MX.
 type Conn struct {
-	Info // содержит информацию о текущем соединении
-
-	conn          net.Conn      // сокетное соединение с сервером MX
-	counter       uint32        // счетчик отосланных команд
-	keepAlive     *time.Timer   // таймер для отсылки keep-alive сообщений
-	err           error         // содержит ошибку соединения
+	Info                      // информация о текущем соединении
+	conn          net.Conn    // сокетное соединение с сервером MX
+	counter       uint32      // счетчик отосланных команд
+	keepAlive     *time.Timer // таймер для отсылки keep-alive сообщений
+	mu            sync.Mutex
 	done          chan struct{} // канал для уведомления о закрытии соединения
-	mu            sync.RWMutex  // для управления таймером
-	waitResponses sync.Map      // каналы ожидания ответов по номерам отосланных команд
-	eventHandlers sync.Map      // зарегистрированные обработчики событий
+	waitResponses sync.Map      // список каналов для обработки ответов
+	eventHandlers eventHandlers // зарегистрированные обработчики событий
 }
 
 // Connect устанавливает соединение с сервером MX и возвращает его.
@@ -63,22 +61,10 @@ func Connect(host string, login Login) (*Conn, error) {
 	return mx, nil
 }
 
-// setError сохраняет первую ошибку соединения в свойствах.
-func (c *Conn) setError(err error) {
-	c.mu.Lock()
-	if c.err == nil {
-		c.err = err        // запоминаем ошибку
-		c.keepAlive.Stop() // останавливаем таймер отправки keepAlive сообщений
-	}
-	c.mu.Unlock()
-}
-
 // Close закрывает соединение с сервером.
 func (c *Conn) Close() error {
 	csta(false, 0, []byte("<close/>"))
-	var err = c.conn.Close() // закрываем соединение
-	c.setError(err)          // запоминаем ошибку
-	return err
+	return c.conn.Close()
 }
 
 // Done возвращает канал для уведомления о закрытии.
@@ -121,7 +107,6 @@ func (c *Conn) send(cmd interface{}) (uint32, error) {
 	buffers.Put(buf)                  // освобождаем буфер
 	csta(false, uint16(counter), xmlData)
 	if err != nil {
-		c.setError(err) // запоминаем ошибку
 		return 0, err
 	}
 	// откладываем посылку keepAlive
@@ -194,8 +179,10 @@ func (c *Conn) SendWithResponse(cmd interface{}) (*Response, error) {
 // reading запускает процесс чтения ответов от сервера. Процесс прекращается
 // при ошибке или закрытии соединения
 func (c *Conn) reading() error {
+	c.mu.Lock()
 	// запускаем отправку keepAlive сообщений
 	c.keepAlive = time.AfterFunc(KeepAliveDuration, c.sendKeepAlive)
+	c.mu.Unlock()
 	// читаем и разбираем ответы сервера
 	var (
 		header = make([]byte, 8) // буфер для разбора заголовка ответа
@@ -248,37 +235,14 @@ func (c *Conn) reading() error {
 				respChan.(responseChan) <- resp
 			}
 		}
-		// получаем список обработчиков для события
-		list, ok := c.eventHandlers.Load(resp.Name)
-		if !ok {
-			continue // обработчики не зарегистрированы
-		}
-		// перебираем все обработчики и отсылаем в них событие
-		for handler := range list.(mapOfHandlerChan) {
-			handler <- resp
-		}
+		// отправляем событие всем зарегистрированным обработчикам
+		c.eventHandlers.Send(resp)
 	}
-	c.setError(err) // запоминаем ошибку
-	// закрываем все обработчики
-	c.eventHandlers.Range(func(event, list interface{}) bool {
-		c.eventHandlers.Delete(event) // удаляем все обработчики
-		// перебираем все обработчики и отсылаем в них пустое событие для закрытия
-		for handler := range list.(mapOfHandlerChan) {
-			handler <- nil
-		}
-		return true
-	})
+	c.eventHandlers.Close() // закрываем все обработчики событий
+	c.mu.Lock()
+	c.keepAlive.Stop() // останавливаем отправку keepAlive сообщений
+	c.mu.Unlock()
 	close(c.done) // закрываем канал с уведомлением о закрытии
-	return err
-}
-
-// Error возвращает ошибку соединения, если она произошла во время чтения
-// ответов от сервера. До тех пор, пока соединение с сервером активно, всегда
-// будет возвращаться nil.
-func (c *Conn) Error() error {
-	c.mu.RLock()
-	var err = c.err
-	c.mu.RUnlock()
 	return err
 }
 
@@ -290,13 +254,77 @@ func (c *Conn) sendKeepAlive() {
 	// заранее и приведено в бинарный вид команды
 	if _, err := c.conn.Write([]byte{0x00, 0x00, 0x00, 0x15, 0x30, 0x30, 0x30,
 		0x30, 0x3c, 0x6b, 0x65, 0x65, 0x70, 0x61, 0x6c, 0x69, 0x76, 0x65, 0x20,
-		0x2f, 0x3e}); err != nil {
-		c.setError(err) // запоминаем ошибку
-	} else {
+		0x2f, 0x3e}); err == nil {
 		// взводим таймер отправки следующего keepAlive сообщения
 		c.mu.Lock()
 		c.keepAlive.Reset(KeepAliveDuration)
 		c.mu.Unlock()
-		// csta(false, 0, []byte("<keepalive/>"))
+		csta(false, 0, []byte("<keepalive/>"))
 	}
+}
+
+// Handler описывает функцию для обработки событий. Если функция возвращает
+// ошибку, то дальнейшая обработка событий прекращается.
+type Handler = func(*Response) error
+
+// Stop для остановки обработки событий в Handle.
+var Stop error = new(emptyError)
+
+// HandleWait вызывает переданную функцию handler для обработки все событий с
+// названиями из списка events. timeout задает максимальное время ожидания
+// ответа от сервера. По истечение времени ожидания возвращается ошибка
+// ErrTimeout. Если timeout установлен в 0 или отрицательный, то время ожидания
+// ответа не ограничено. Для планового завершения обработки можно в качестве
+// ошибки вернуть mx.Stop: выполнение прервется, но в ответе ошибкой будет nil.
+func (c *Conn) HandleWait(handler Handler, timeout time.Duration,
+	events ...string) (err error) {
+	if len(events) == 0 {
+		return nil // нет событий для отслеживания
+	}
+	// создаем канал для получения ответов от сервера и регистрируем его для
+	// всех заданных имен событий
+	var eventChan = make(chan *Response, 1)
+	defer close(eventChan)                      // закрываем наш канал по окончании
+	c.eventHandlers.Store(eventChan, events...) // регистрируем для событий
+	defer c.eventHandlers.Delete(eventChan)     // удаляем обработчики по окончании
+
+	// взводим таймер ожидания ответа
+	var timeoutTimer = time.NewTimer(timeout)
+	if timeout <= 0 {
+		<-timeoutTimer.C // сбрасываем таймер
+	}
+	for {
+		select {
+		case resp := <-eventChan: // получили событие от сервера
+			// пустой ответ приходит только в случае закрытия соединения
+			if resp == nil {
+				if !timeoutTimer.Stop() {
+					<-timeoutTimer.C
+				}
+				return nil
+			}
+			// запускаем обработчик события и анализируем ответ с ошибкой
+			switch err = handler(resp); err {
+			case nil:
+				if timeout > 0 { // сдвигаем таймер, если задано время ожидания
+					if !timeoutTimer.Stop() {
+						<-timeoutTimer.C
+					}
+					timeoutTimer.Reset(timeout)
+				}
+				continue // ждем следующего ответа для обработки
+			case Stop:
+				return nil
+			default:
+				return err
+			}
+		case <-timeoutTimer.C:
+			return ErrTimeout // ошибка времени ожидания
+		}
+	}
+}
+
+// Handle просто вызывает HandleWait с установленным временем ожидания 0.
+func (c *Conn) Handle(handler Handler, events ...string) error {
+	return c.HandleWait(handler, 0, events...)
 }
