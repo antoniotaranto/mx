@@ -51,6 +51,8 @@ func Connect(host string, login Login) (*Conn, error) {
 		conn: conn,
 		done: make(chan struct{}),
 	}
+	// запускаем отправку keepAlive сообщений
+	mx.keepAlive = time.AfterFunc(KeepAliveDuration, mx.sendKeepAlive)
 	go mx.reading() // запускаем процесс чтения ответов от сервера
 	// авторизуем пользователя
 	// без этого шага никакие команды сервером все равно не обрабатываются
@@ -179,10 +181,6 @@ func (c *Conn) SendWithResponse(cmd interface{}) (*Response, error) {
 // reading запускает процесс чтения ответов от сервера. Процесс прекращается
 // при ошибке или закрытии соединения
 func (c *Conn) reading() error {
-	c.mu.Lock()
-	// запускаем отправку keepAlive сообщений
-	c.keepAlive = time.AfterFunc(KeepAliveDuration, c.sendKeepAlive)
-	c.mu.Unlock()
 	// читаем и разбираем ответы сервера
 	var (
 		header = make([]byte, 8) // буфер для разбора заголовка ответа
