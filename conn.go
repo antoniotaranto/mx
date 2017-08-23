@@ -35,6 +35,7 @@ type Conn struct {
 	done          chan struct{} // канал для уведомления о закрытии соединения
 	waitResponses sync.Map      // список каналов для обработки ответов
 	eventHandlers eventHandlers // зарегистрированные обработчики событий
+	monitors      sync.Map      // запущенные мониторы по их идентификаторам
 }
 
 // Connect устанавливает соединение с сервером MX и возвращает его.

@@ -20,7 +20,7 @@ func TestConn_Handle(t *testing.T) {
 	}
 	defer conn.Close()
 	conn.MonitorStart("")
-	defer conn.MonitorStop(0)
+	defer conn.MonitorStopID(0)
 
 	go func() {
 		err = conn.Handle(func(resp *Response) error {
