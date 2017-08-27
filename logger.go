@@ -21,10 +21,6 @@ var (
 	// устанавливается автоматически при задании SetLogOutput, если
 	// поддерживается ASCII
 	logTTY = false
-	// строка с форматированием вывода в лог
-	// передаются следующие данные: направление [1], номер команды [2], сама
-	// команда в формате XML [3]
-	logFormat = "%s %s %s"
 	// лог, используемый для вывода команд CSTA
 	cstaLogger = log.New(ioutil.Discard, "", log.LstdFlags)
 	output     = false
@@ -46,8 +42,8 @@ func SetCSTALog(w io.Writer, flag int) {
 	}
 }
 
-// csta форматируем вывод лога с командами CSTA.
-func csta(inFlag bool, id uint16, data []byte) {
+// csta форматирует вывод лога с командами CSTA.
+func (c *Conn) csta(inFlag bool, id uint16, data []byte) {
 	if !output {
 		return
 	}
@@ -67,5 +63,9 @@ func csta(inFlag bool, id uint16, data []byte) {
 		data = []byte(fmt.Sprintf("<\033[32m%s\033[0m%s",
 			data[1:indx], data[indx:]))
 	}
-	cstaLogger.Printf(logFormat, LogINOUT[inFlag], fmt.Sprintf(fmtID, id), data)
+	cstaLogger.Printf("%s %s %s %s",
+		fmt.Sprintf("[%5s:%4s]", c.SN, c.Ext),
+		LogINOUT[inFlag],
+		fmt.Sprintf(fmtID, id),
+		data)
 }

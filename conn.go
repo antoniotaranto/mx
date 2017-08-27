@@ -66,7 +66,7 @@ func Connect(host string, login Login) (*Conn, error) {
 
 // Close закрывает соединение с сервером.
 func (c *Conn) Close() error {
-	csta(false, 0, []byte("<close/>"))
+	c.csta(false, 0, []byte("<close/>"))
 	return c.conn.Close()
 }
 
@@ -108,7 +108,7 @@ func (c *Conn) send(cmd interface{}) (uint32, error) {
 	buf.Write(xmlData)                // содержимое команды
 	_, err := buf.WriteTo(c.conn)     // отсылаем команду
 	buffers.Put(buf)                  // освобождаем буфер
-	csta(false, uint16(counter), xmlData)
+	c.csta(false, uint16(counter), xmlData)
 	if err != nil {
 		return 0, err
 	}
@@ -221,7 +221,7 @@ func (c *Conn) reading() error {
 		if !ok {
 			goto readToken // игнорируем все до корневого элемента XML.
 		}
-		csta(true, uint16(id), data[offset:])
+		c.csta(true, uint16(id), data[offset:])
 		// формируем ответ
 		var resp = &Response{
 			Name: startToken.Name.Local, // название элемента
@@ -258,7 +258,7 @@ func (c *Conn) sendKeepAlive() {
 		c.mu.Lock()
 		c.keepAlive.Reset(KeepAliveDuration)
 		c.mu.Unlock()
-		// csta(false, 0, []byte("<keepalive/>"))
+		// c.csta(false, 0, []byte("<keepalive/>"))
 	}
 }
 
