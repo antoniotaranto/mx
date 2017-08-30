@@ -32,7 +32,7 @@ type Conn struct {
 	counter       uint32      // счетчик отосланных команд
 	keepAlive     *time.Timer // таймер для отсылки keep-alive сообщений
 	mu            sync.Mutex
-	done          chan struct{} // канал для уведомления о закрытии соединения
+	done          chan error    // канал для уведомления о закрытии соединения
 	waitResponses sync.Map      // список каналов для обработки ответов
 	eventHandlers eventHandlers // зарегистрированные обработчики событий
 	monitors      sync.Map      // запущенные мониторы по их идентификаторам
@@ -50,7 +50,7 @@ func Connect(host string, login Login) (*Conn, error) {
 	}
 	var mx = &Conn{
 		conn: conn,
-		done: make(chan struct{}),
+		done: make(chan error, 1),
 	}
 	// запускаем отправку keepAlive сообщений
 	mx.keepAlive = time.AfterFunc(KeepAliveDuration, mx.sendKeepAlive)
@@ -71,7 +71,7 @@ func (c *Conn) Close() error {
 }
 
 // Done возвращает канал для уведомления о закрытии.
-func (c *Conn) Done() <-chan struct{} {
+func (c *Conn) Done() <-chan error {
 	return c.done
 }
 
@@ -236,11 +236,20 @@ func (c *Conn) reading() error {
 		}
 		// отправляем событие всем зарегистрированным обработчикам
 		c.eventHandlers.Send(resp)
+		// проверяем на принудительное завершение сессии
+		if resp.Name == "Logout" {
+			var logout = new(ErrLogout)
+			if err = resp.Decode(logout); err == nil {
+				err = logout
+			}
+			break // закрываем соединение
+		}
 	}
 	c.eventHandlers.Close() // закрываем все обработчики событий
 	c.mu.Lock()
 	c.keepAlive.Stop() // останавливаем отправку keepAlive сообщений
 	c.mu.Unlock()
+	c.done <- err // отправляем ошибку
 	close(c.done) // закрываем канал с уведомлением о закрытии
 	return err
 }

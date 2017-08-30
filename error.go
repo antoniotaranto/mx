@@ -1,5 +1,9 @@
 package mx
 
+import (
+	"fmt"
+)
+
 // LoginError описывает ошибку авторизации пользователя.
 type LoginError struct {
 	Code       uint8  `xml:"Code,attr" json:"code,omitempty"`
@@ -32,3 +36,13 @@ func (timeoutError) Temporary() bool { return true }
 type emptyError struct{}
 
 func (emptyError) Error() string { return "" }
+
+// ErrLogout описывает сообщение о закрытии соединения сервером.
+type ErrLogout struct {
+	Mode string `xml:"mode,attr"`
+}
+
+// Error возвращает текстовое описание ошибки принудительного закрытия соединения.
+func (e *ErrLogout) Error() string {
+	return fmt.Sprintf("logout: %s", e.Mode)
+}
