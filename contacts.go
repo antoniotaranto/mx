@@ -4,7 +4,7 @@ import "encoding/xml"
 
 // Contact описывает информацию о пользователе из адресной книги.
 type Contact struct {
-	JID        JID    `xml:"jid,attr" json:"-"`
+	JID        JID    `xml:"jid,attr" json:"jid,string"`
 	Presence   string `xml:"presence,attr" json:"status,omitempty"`
 	Note       string `xml:"presenceNote,attr" json:"note,omitempty"`
 	FirstName  string `xml:"firstName" json:"firstName"`

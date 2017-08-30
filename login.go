@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/xml"
 	"fmt"
+	"strconv"
 )
 
 // Login описывает основные параметры для авторизации пользователя, используемые
@@ -83,4 +84,12 @@ type Info struct {
 	// уникальный идентификатор пользователя MX
 	// может быть 0, в случае серверной авторизации
 	JID JID `xml:"userId,attr" json:"jid,string"`
+}
+
+// JID описывает формат уникального идентификатора, используемого сервером MX.
+type JID = uint64
+
+// ParseJID разбирает строковое представление JID.
+func ParseJID(jid string) (JID, error) {
+	return strconv.ParseUint(jid, 10, 64)
 }
