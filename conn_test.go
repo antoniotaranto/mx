@@ -3,14 +3,18 @@ package mx
 import (
 	"fmt"
 	"testing"
+
+	"github.com/mdigger/log"
 )
 
 func TestConn_Handle(t *testing.T) {
+	log.SetLevel(log.DebugLevel)
 	conn, err := Connect("89.185.246.134:7778")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer conn.Close()
+	conn.Logger = log.Default
 	if err = conn.Login(Login{
 		UserName: "peterh",
 		Password: "981211",
