@@ -308,18 +308,13 @@ func (c *Conn) HandleWait(handler Handler, timeout time.Duration,
 		case resp := <-eventChan: // получили событие от сервера
 			// пустой ответ приходит только в случае закрытия соединения
 			if resp == nil {
-				if timeoutTimer.Stop() {
-					<-timeoutTimer.C
-				}
+				timeoutTimer.Stop()
 				return nil
 			}
 			// запускаем обработчик события и анализируем ответ с ошибкой
 			switch err = handler(resp); err {
 			case nil:
 				if timeout > 0 { // сдвигаем таймер, если задано время ожидания
-					if timeoutTimer.Stop() {
-						<-timeoutTimer.C
-					}
 					timeoutTimer.Reset(timeout)
 				}
 				continue // ждем следующего ответа для обработки
