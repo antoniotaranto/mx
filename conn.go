@@ -45,7 +45,10 @@ type Conn struct {
 func Connect(host string) (*Conn, error) {
 	// устанавливаем защищенное соединение с сервером MX
 	conn, err := tls.DialWithDialer(
-		&net.Dialer{Timeout: ConnectionTimeout},
+		&net.Dialer{
+			Timeout:   ConnectionTimeout,
+			KeepAlive: KeepAliveDuration,
+		},
 		"tcp", host,
 		&tls.Config{InsecureSkipVerify: true})
 	if err != nil {
@@ -265,6 +268,8 @@ func (c *Conn) sendKeepAlive() {
 		c.keepAlive.Reset(KeepAliveDuration)
 		c.mu.Unlock()
 		// c.csta(false, 0, []byte("<keepalive/>"))
+		// } else {
+		// 	c.csta(false, 0, []byte(fmt.Sprintf("<keepalive error=%q/>", err)))
 	}
 }
 
@@ -303,7 +308,7 @@ func (c *Conn) HandleWait(handler Handler, timeout time.Duration,
 		case resp := <-eventChan: // получили событие от сервера
 			// пустой ответ приходит только в случае закрытия соединения
 			if resp == nil {
-				if !timeoutTimer.Stop() {
+				if timeoutTimer.Stop() {
 					<-timeoutTimer.C
 				}
 				return nil
@@ -312,7 +317,7 @@ func (c *Conn) HandleWait(handler Handler, timeout time.Duration,
 			switch err = handler(resp); err {
 			case nil:
 				if timeout > 0 { // сдвигаем таймер, если задано время ожидания
-					if !timeoutTimer.Stop() {
+					if timeoutTimer.Stop() {
 						<-timeoutTimer.C
 					}
 					timeoutTimer.Reset(timeout)
