@@ -6,6 +6,8 @@ import (
 	"encoding/xml"
 	"fmt"
 	"strconv"
+
+	"github.com/mdigger/log"
 )
 
 // Login описывает основные параметры для авторизации пользователя, используемые
@@ -20,8 +22,8 @@ type Login struct {
 	Version    string `xml:"version,attr,omitempty" json:"version,omitempty"`
 }
 
-// login отправляет запрос на авторизацию пользователя.
-func (c *Conn) login(login Login) error {
+// Login отправляет запрос на авторизацию пользователя.
+func (c *Conn) Login(login Login) error {
 	// хешируем пароль, если он уже не в виде хеша
 	var hashed bool             // флаг зашифрованного пароля
 	var passwd = login.Password // пароль пользователя для авторизации
@@ -53,6 +55,13 @@ send:
 		// сохраняем информацию о соединении
 		c.mu.Lock()
 		err = resp.Decode(&c.Info)
+		if c.Logger != nil {
+			c.Logger = c.Logger.WithFields(log.Fields{
+				"mx":  c.SN,
+				"ext": c.Ext,
+				"jid": c.JID,
+			})
+		}
 		c.mu.Unlock()
 		return err
 	case "loginFailed": // ошибка авторизации
@@ -84,6 +93,20 @@ type Info struct {
 	// уникальный идентификатор пользователя MX
 	// может быть 0, в случае серверной авторизации
 	JID JID `xml:"userId,attr" json:"jid,string"`
+}
+
+// Logout отправляет команду о завершении пользовательской сессии.
+func (c *Conn) Logout() error {
+	var err = c.Send("<logout/>")
+	// удаляем поля из лога
+	c.mu.Lock()
+	if c.Logger != nil {
+		delete(c.Logger.Fields, "mx")
+		delete(c.Logger.Fields, "ext")
+		delete(c.Logger.Fields, "jid")
+	}
+	c.mu.Unlock()
+	return err
 }
 
 // JID описывает формат уникального идентификатора, используемого сервером MX.

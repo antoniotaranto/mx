@@ -2,23 +2,24 @@ package mx
 
 import (
 	"fmt"
-	"os"
 	"testing"
 )
 
 func TestConn_Handle(t *testing.T) {
-	SetCSTALog(os.Stdout, Lcolor)
-	conn, err := Connect("89.185.246.134:7778", Login{
+	conn, err := Connect("89.185.246.134:7778")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	if err = conn.Login(Login{
 		UserName: "peterh",
 		Password: "981211",
 		Type:     "User",
 		Platform: "iPhone",
 		Version:  "1.0",
-	})
-	if err != nil {
+	}); err != nil {
 		t.Fatal(err)
 	}
-	defer conn.Close()
 	conn.MonitorStart("")
 	defer conn.MonitorStopID(0)
 

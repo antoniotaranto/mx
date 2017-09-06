@@ -6,18 +6,20 @@ import (
 )
 
 func TestMonitor(t *testing.T) {
-	// SetCSTALog(os.Stdout, Lcolor)
-	conn, err := Connect("89.185.246.134:7778", Login{
+	conn, err := Connect("89.185.246.134:7778")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	if err = conn.Login(Login{
 		UserName: "peterh",
 		Password: "981211",
 		Type:     "User",
 		Platform: "iPhone",
 		Version:  "1.0",
-	})
-	if err != nil {
+	}); err != nil {
 		t.Fatal(err)
 	}
-	defer conn.Close()
 
 	ab, err := conn.Addressbook()
 	if err != nil {

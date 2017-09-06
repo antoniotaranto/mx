@@ -12,6 +12,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/mdigger/log"
 )
 
 var (
@@ -27,10 +29,11 @@ var (
 
 // Conn описывает соединение с сервером MX.
 type Conn struct {
-	Info                      // информация о текущем соединении
-	conn          net.Conn    // сокетное соединение с сервером MX
-	counter       uint32      // счетчик отосланных команд
-	keepAlive     *time.Timer // таймер для отсылки keep-alive сообщений
+	Info                       // информация о текущем соединении
+	Logger        *log.Context // для логирования команд и событий CSTA
+	conn          net.Conn     // сокетное соединение с сервером MX
+	counter       uint32       // счетчик отосланных команд
+	keepAlive     *time.Timer  // таймер для отсылки keep-alive сообщений
 	mu            sync.Mutex
 	done          chan error    // канал для уведомления о закрытии соединения
 	waitResponses sync.Map      // список каналов для обработки ответов
@@ -39,7 +42,7 @@ type Conn struct {
 }
 
 // Connect устанавливает соединение с сервером MX и возвращает его.
-func Connect(host string, login Login) (*Conn, error) {
+func Connect(host string) (*Conn, error) {
 	// устанавливаем защищенное соединение с сервером MX
 	conn, err := tls.DialWithDialer(
 		&net.Dialer{Timeout: ConnectionTimeout},
@@ -55,12 +58,6 @@ func Connect(host string, login Login) (*Conn, error) {
 	// запускаем отправку keepAlive сообщений
 	mx.keepAlive = time.AfterFunc(KeepAliveDuration, mx.sendKeepAlive)
 	go mx.reading() // запускаем процесс чтения ответов от сервера
-	// авторизуем пользователя
-	// без этого шага никакие команды сервером все равно не обрабатываются
-	if err = mx.login(login); err != nil {
-		conn.Close()
-		return nil, err
-	}
 	return mx, nil
 }
 
