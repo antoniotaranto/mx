@@ -79,3 +79,19 @@ func (c *Conn) Monitor(ext string) int64 {
 	}
 	return 0
 }
+
+// MonitorExt возвращает внутренний номер по идентификатору монитора.
+func (c *Conn) MonitorExt(id int64) string {
+	if id == 0 {
+		return c.Ext // номер авторизованного пользователя
+	}
+	var result string
+	c.monitors.Range(func(ext, mid interface{}) bool {
+		if mid.(int64) == id {
+			result = ext.(string)
+			return false
+		}
+		return true
+	})
+	return result
+}

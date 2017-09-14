@@ -14,8 +14,8 @@ func TestConn_Handle(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer conn.Close()
-	conn.Logger = log.Default
-	if err = conn.Login(Login{
+	conn.SetLogger(log.Default)
+	if _, err = conn.Login(Login{
 		UserName: "peterh",
 		Password: "981211",
 		Type:     "User",

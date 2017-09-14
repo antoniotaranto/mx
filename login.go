@@ -15,7 +15,7 @@ import (
 type Login struct {
 	UserName   string `xml:"userName" json:"userName"`
 	Password   string `xml:"pwd" json:"password"`
-	Type       string `xml:"type,attr,omitempt" json:"type"`
+	Type       string `xml:"type,attr,omitempty" json:"type"`
 	ClientType string `xml:"clientType,attr,omitempty" json:"clientType,omitempty"`
 	ServerType string `xml:"serverType,attr,omitempty" json:"serverType,omitempty"`
 	Platform   string `xml:"platform,attr,omitempty" json:"platform,omitempty"`
@@ -23,7 +23,7 @@ type Login struct {
 }
 
 // Login отправляет запрос на авторизацию пользователя.
-func (c *Conn) Login(login Login) error {
+func (c *Conn) Login(login Login) (*Info, error) {
 	// хешируем пароль, если он уже не в виде хеша
 	var hashed bool             // флаг зашифрованного пароля
 	var passwd = login.Password // пароль пользователя для авторизации
@@ -47,27 +47,34 @@ func (c *Conn) Login(login Login) error {
 send:
 	resp, err := c.SendWithResponse(cmd)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// разбираем в зависимости от имени ответа
 	switch resp.Name {
 	case "loginResponce": // пользователь успешно авторизован
 		// сохраняем информацию о соединении
-		c.mu.Lock()
-		err = resp.Decode(&c.Info)
-		if c.Logger != nil {
-			c.Logger = c.Logger.WithFields(log.Fields{
-				"mx":  c.SN,
-				"ext": c.Ext,
-				"jid": c.JID,
-			})
+		var info Info
+		err = resp.Decode(&info)
+		c.mul.Lock()
+		if c.logger != nil {
+			var ctxlog = c.logger.WithField("mx", info.SN)
+			if info.JID != 0 {
+				ctxlog = ctxlog.WithFields(log.Fields{
+					"ext": info.Ext,
+					"jid": info.JID,
+				})
+			}
+			c.logger = ctxlog
 		}
+		c.mul.Unlock()
+		c.mu.Lock()
+		c.Info = info
 		c.mu.Unlock()
-		return err
+		return &info, err
 	case "loginFailed": // ошибка авторизации
 		var loginError = new(LoginError)
 		if err := resp.Decode(loginError); err != nil {
-			return err
+			return nil, err
 		}
 		// если ошибка связана с тем, что пароль передан в виде хеш,
 		// то повторяем попытку авторизации с паролем в открытом виде
@@ -77,9 +84,9 @@ send:
 			cmd.Password = login.Password
 			goto send // повторяем с открытым паролем
 		}
-		return loginError // возвращаем ошибку авторизации
+		return nil, loginError // возвращаем ошибку авторизации
 	default: // неизвестный ответ, который мы не знаем как разбирать
-		return fmt.Errorf("unknown login response %s", resp.Name)
+		return nil, fmt.Errorf("unknown login response %s", resp.Name)
 	}
 }
 
@@ -99,13 +106,13 @@ type Info struct {
 func (c *Conn) Logout() error {
 	var err = c.Send("<logout/>")
 	// удаляем поля из лога
-	c.mu.Lock()
-	if c.Logger != nil {
-		delete(c.Logger.Fields, "mx")
-		delete(c.Logger.Fields, "ext")
-		delete(c.Logger.Fields, "jid")
+	c.mul.Lock()
+	if c.logger != nil {
+		delete(c.logger.Fields, "mx")
+		delete(c.logger.Fields, "ext")
+		delete(c.logger.Fields, "jid")
 	}
-	c.mu.Unlock()
+	c.mul.Unlock()
 	return err
 }
 

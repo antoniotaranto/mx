@@ -30,10 +30,11 @@ var (
 // Conn описывает соединение с сервером MX.
 type Conn struct {
 	Info                       // информация о текущем соединении
-	Logger        *log.Context // для логирования команд и событий CSTA
-	conn          net.Conn     // сокетное соединение с сервером MX
-	counter       uint32       // счетчик отосланных команд
-	keepAlive     *time.Timer  // таймер для отсылки keep-alive сообщений
+	logger        *log.Context // для логирования команд и событий CSTA
+	mul           sync.RWMutex
+	conn          net.Conn    // сокетное соединение с сервером MX
+	counter       uint32      // счетчик отосланных команд
+	keepAlive     *time.Timer // таймер для отсылки keep-alive сообщений
 	mu            sync.Mutex
 	done          chan error    // канал для уведомления о закрытии соединения
 	waitResponses sync.Map      // список каналов для обработки ответов

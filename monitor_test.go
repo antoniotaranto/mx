@@ -11,7 +11,7 @@ func TestMonitor(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer conn.Close()
-	if err = conn.Login(Login{
+	if _, err = conn.Login(Login{
 		UserName: "peterh",
 		Password: "981211",
 		Type:     "User",
