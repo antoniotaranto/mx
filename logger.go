@@ -1,6 +1,7 @@
 package mx
 
 import (
+	"bytes"
 	"fmt"
 
 	"github.com/mdigger/log3"
@@ -17,11 +18,15 @@ func (c *Conn) csta(inFlag bool, id uint16, data []byte) {
 		c.mul.RUnlock()
 		return
 	}
-	var msg = fmt.Sprintf("%s %s", LogINOUT[inFlag], data)
+	var name = data
+	if indx := bytes.IndexAny(data, " />"); indx > 1 {
+		name = data[1:indx]
+	}
+	var msg = fmt.Sprintf("%s %s", LogINOUT[inFlag], name)
 	if id > 0 && id < 9999 {
-		c.logger.Debug(msg, "id", fmt.Sprintf("%04d", id))
+		c.logger.Debug(msg, "id", fmt.Sprintf("%04d", id), "xml", string(data))
 	} else {
-		c.logger.Debug(msg)
+		c.logger.Debug(msg, "xml", string(data))
 	}
 	c.mul.RUnlock()
 }
