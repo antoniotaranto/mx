@@ -13,13 +13,13 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/mdigger/log"
+	"github.com/mdigger/log3"
 )
 
 var (
 	// ConnectionTimeout задает максимальное время ожидания установки соединения
 	// с сервером.
-	ConnectionTimeout = time.Second * 5
+	ConnectionTimeout = time.Second * 20
 	// ReadTimeout задает время по умолчанию дл ожидания ответа от сервера.
 	ReadTimeout = time.Second * 2
 	// KeepAliveDuration задает интервал для отправки keep-alive сообщений в
@@ -29,8 +29,8 @@ var (
 
 // Conn описывает соединение с сервером MX.
 type Conn struct {
-	Info                       // информация о текущем соединении
-	logger        *log.Context // для логирования команд и событий CSTA
+	Info                     // информация о текущем соединении
+	logger        log.Logger // для логирования команд и событий CSTA
 	mul           sync.RWMutex
 	conn          net.Conn    // сокетное соединение с сервером MX
 	counter       uint32      // счетчик отосланных команд
