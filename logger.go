@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/mdigger/log3"
+	"github.com/mdigger/log4"
 )
 
 // LogINOUT задает символы, используемые для вывода направления
@@ -32,7 +32,7 @@ func (c *Conn) csta(inFlag bool, id uint16, data []byte) {
 }
 
 // SetLogger устанавливает лог.
-func (c *Conn) SetLogger(l log.Logger) {
+func (c *Conn) SetLogger(l *log.Logger) {
 	c.mul.Lock()
 	c.logger = l
 	c.mul.Unlock()

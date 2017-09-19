@@ -13,7 +13,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/mdigger/log3"
+	"github.com/mdigger/log4"
 )
 
 var (
@@ -29,8 +29,8 @@ var (
 
 // Conn описывает соединение с сервером MX.
 type Conn struct {
-	Info                     // информация о текущем соединении
-	logger        log.Logger // для логирования команд и событий CSTA
+	Info                      // информация о текущем соединении
+	logger        *log.Logger // для логирования команд и событий CSTA
 	mul           sync.RWMutex
 	conn          net.Conn    // сокетное соединение с сервером MX
 	counter       uint32      // счетчик отосланных команд
