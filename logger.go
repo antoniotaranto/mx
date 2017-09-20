@@ -4,15 +4,15 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/mdigger/log4"
+	"github.com/mdigger/log"
 )
 
 // LogINOUT задает символы, используемые для вывода направления
 // (true - входящие, false - исходящие)
 var LogINOUT = map[bool]string{true: "→", false: "←"}
 
-// csta форматирует вывод лога с командами CSTA.
-func (c *Conn) csta(inFlag bool, id uint16, data []byte) {
+// log форматирует вывод лога с командами CSTA.
+func (c *Conn) log(inFlag bool, id uint16, data []byte) {
 	c.mul.RLock()
 	if c.logger == nil {
 		c.mul.RUnlock()
@@ -24,9 +24,9 @@ func (c *Conn) csta(inFlag bool, id uint16, data []byte) {
 	}
 	var msg = fmt.Sprintf("%s %s", LogINOUT[inFlag], name)
 	if id > 0 && id < 9999 {
-		c.logger.Debug(msg, "id", fmt.Sprintf("%04d", id), "xml", string(data))
+		c.logger.Log(log.TRACE, msg, "id", fmt.Sprintf("%04d", id), "xml", string(data))
 	} else {
-		c.logger.Debug(msg, "xml", string(data))
+		c.logger.Log(log.TRACE, msg, "xml", string(data))
 	}
 	c.mul.RUnlock()
 }

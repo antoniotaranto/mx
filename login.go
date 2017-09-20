@@ -100,12 +100,12 @@ type Info struct {
 // Logout отправляет команду о завершении пользовательской сессии.
 func (c *Conn) Logout() error {
 	var err = c.Send("<logout/>")
-	// удаляем поля из лога
-	c.mul.Lock()
-	if c.logger != nil {
-		c.logger = c.logger.New("mx")
-	}
-	c.mul.Unlock()
+	// // удаляем поля из лога
+	// c.mul.Lock()
+	// if c.logger != nil {
+	// 	c.logger = c.logger.New("mx")
+	// }
+	// c.mul.Unlock()
 	return err
 }
 

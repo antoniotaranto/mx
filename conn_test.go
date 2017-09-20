@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/mdigger/log4"
+	"github.com/mdigger/log"
 )
 
 func TestConn_Handle(t *testing.T) {
