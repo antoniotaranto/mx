@@ -6,8 +6,6 @@ import (
 	"encoding/xml"
 	"fmt"
 	"strconv"
-
-	"github.com/mdigger/log"
 )
 
 // Login описывает основные параметры для авторизации пользователя, используемые
@@ -57,14 +55,11 @@ send:
 		err = resp.Decode(&info)
 		c.mul.Lock()
 		if c.logger != nil {
-			var ctxlog = c.logger.WithField("mx", info.SN)
+			var mxid = "MX" + info.SN
 			if info.JID != 0 {
-				ctxlog = ctxlog.WithFields(log.Fields{
-					"ext": info.Ext,
-					"jid": info.JID,
-				})
+				mxid += "-" + info.Ext
 			}
-			c.logger = ctxlog
+			c.logger = c.logger.New(mxid)
 		}
 		c.mul.Unlock()
 		c.mu.Lock()
@@ -105,14 +100,12 @@ type Info struct {
 // Logout отправляет команду о завершении пользовательской сессии.
 func (c *Conn) Logout() error {
 	var err = c.Send("<logout/>")
-	// удаляем поля из лога
-	c.mul.Lock()
-	if c.logger != nil {
-		delete(c.logger.Fields, "mx")
-		delete(c.logger.Fields, "ext")
-		delete(c.logger.Fields, "jid")
-	}
-	c.mul.Unlock()
+	// // удаляем поля из лога
+	// c.mul.Lock()
+	// if c.logger != nil {
+	// 	c.logger = c.logger.New("mx")
+	// }
+	// c.mul.Unlock()
 	return err
 }
 

@@ -19,7 +19,7 @@ import (
 var (
 	// ConnectionTimeout задает максимальное время ожидания установки соединения
 	// с сервером.
-	ConnectionTimeout = time.Second * 5
+	ConnectionTimeout = time.Second * 20
 	// ReadTimeout задает время по умолчанию дл ожидания ответа от сервера.
 	ReadTimeout = time.Second * 2
 	// KeepAliveDuration задает интервал для отправки keep-alive сообщений в
@@ -29,8 +29,8 @@ var (
 
 // Conn описывает соединение с сервером MX.
 type Conn struct {
-	Info                       // информация о текущем соединении
-	logger        *log.Context // для логирования команд и событий CSTA
+	Info                      // информация о текущем соединении
+	logger        *log.Logger // для логирования команд и событий CSTA
 	mul           sync.RWMutex
 	conn          net.Conn    // сокетное соединение с сервером MX
 	counter       uint32      // счетчик отосланных команд
@@ -67,7 +67,7 @@ func Connect(host string) (*Conn, error) {
 
 // Close закрывает соединение с сервером.
 func (c *Conn) Close() error {
-	c.csta(false, 0, []byte("<close/>"))
+	c.log(false, 0, []byte("<close/>"))
 	return c.conn.Close()
 }
 
@@ -109,7 +109,7 @@ func (c *Conn) send(cmd interface{}) (uint32, error) {
 	buf.Write(xmlData)                // содержимое команды
 	_, err := buf.WriteTo(c.conn)     // отсылаем команду
 	buffers.Put(buf)                  // освобождаем буфер
-	c.csta(false, uint16(counter), xmlData)
+	c.log(false, uint16(counter), xmlData)
 	if err != nil {
 		return 0, err
 	}
@@ -222,7 +222,7 @@ func (c *Conn) reading() error {
 		if !ok {
 			goto readToken // игнорируем все до корневого элемента XML.
 		}
-		c.csta(true, uint16(id), data[offset:])
+		c.log(true, uint16(id), data[offset:])
 		// формируем ответ
 		var resp = &Response{
 			Name: startToken.Name.Local, // название элемента

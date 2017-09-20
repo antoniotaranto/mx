@@ -8,13 +8,13 @@ import (
 )
 
 func TestConn_Handle(t *testing.T) {
-	log.SetLevel(log.DebugLevel)
+	log.SetLevel(log.DEBUG)
 	conn, err := Connect("89.185.246.134:7778")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer conn.Close()
-	conn.SetLogger(log.Default)
+	conn.SetLogger(log.New(""))
 	if _, err = conn.Login(Login{
 		UserName: "peterh",
 		Password: "981211",
