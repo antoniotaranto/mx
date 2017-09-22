@@ -53,15 +53,15 @@ send:
 		// сохраняем информацию о соединении
 		var info Info
 		err = resp.Decode(&info)
-		c.mul.Lock()
-		if c.logger != nil {
-			var mxid = "MX" + info.SN
-			if info.JID != 0 {
-				mxid += "-" + info.Ext
-			}
-			c.logger = c.logger.New(mxid)
-		}
-		c.mul.Unlock()
+		// c.mul.Lock()
+		// if c.logger != nil {
+		// 	var mxid = "MX" + info.SN
+		// 	if info.JID != 0 {
+		// 		mxid += "-" + info.Ext
+		// 	}
+		// 	c.logger = c.logger.New(mxid)
+		// }
+		// c.mul.Unlock()
 		c.mu.Lock()
 		c.Info = info
 		c.mu.Unlock()
