@@ -11,6 +11,9 @@ import (
 // (true - входящие, false - исходящие)
 var LogINOUT = map[bool]string{true: "→", false: "←"}
 
+// LogLevel задает уровень для вывода в лог.
+var LogLevel = log.TRACE
+
 // log форматирует вывод лога с командами CSTA.
 func (c *Conn) log(inFlag bool, id uint16, data []byte) {
 	c.mul.RLock()
@@ -21,12 +24,17 @@ func (c *Conn) log(inFlag bool, id uint16, data []byte) {
 	var name = data
 	if indx := bytes.IndexAny(data, " />"); indx > 1 {
 		name = data[1:indx]
+		if bytes.Equal(name, []byte("close")) {
+			data = nil
+		}
 	}
 	var msg = fmt.Sprintf("%s %s", LogINOUT[inFlag], name)
 	if id > 0 && id < 9999 {
-		c.logger.Log(log.TRACE, msg, "id", fmt.Sprintf("%04d", id), "xml", string(data))
+		c.logger.Log(LogLevel, msg, "id", fmt.Sprintf("%04d", id), "xml", string(data))
+	} else if data != nil {
+		c.logger.Log(LogLevel, msg, "xml", string(data))
 	} else {
-		c.logger.Log(log.TRACE, msg, "xml", string(data))
+		c.logger.Log(LogLevel, msg)
 	}
 	c.mul.RUnlock()
 }
