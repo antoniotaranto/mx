@@ -25,7 +25,7 @@ func (e *CSTAError) Error() string { return e.Message }
 
 // ErrTimeout возвращается когда ответ от сервера на команду не получен за время
 // ReadTimeout.
-var ErrTimeout error = timeoutError{}
+var ErrTimeout error = new(timeoutError)
 
 type timeoutError struct{}
 
