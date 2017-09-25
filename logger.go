@@ -28,6 +28,16 @@ func (c *Conn) log(inFlag bool, id uint16, data []byte) {
 			data = nil
 		}
 	}
+	// вырезаем содержимое файлов голосовой почты
+	if start := bytes.Index(data, []byte("<mediaContent>")); start > 0 {
+		if end := bytes.LastIndex(data, []byte("</mediaContent>")); end > 0 {
+			b := make([]byte, start+14+len(data)-end+15)
+			bp := copy(b, data[:start+14])
+			bp += copy(b[bp:], []byte("[base64 encoded]"))
+			copy(b[bp:], data[end:])
+			data = b
+		}
+	}
 	var msg = fmt.Sprintf("%s %s", LogINOUT[inFlag], name)
 	if id > 0 && id < 9999 {
 		c.logger.Log(LogLevel, msg, "id", fmt.Sprintf("%04d", id), "xml", string(data))
