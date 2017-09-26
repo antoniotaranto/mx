@@ -12,7 +12,7 @@ import (
 var LogINOUT = map[bool]string{true: "→", false: "←"}
 
 // LogLevel задает уровень для вывода в лог.
-var LogLevel = log.TRACE
+var LogLevel = log.TRACE + 16
 
 // log форматирует вывод лога с командами CSTA.
 func (c *Conn) log(inFlag bool, id uint16, data []byte) {
