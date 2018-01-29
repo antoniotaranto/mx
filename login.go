@@ -95,6 +95,8 @@ type Info struct {
 	// уникальный идентификатор пользователя MX
 	// может быть 0, в случае серверной авторизации
 	JID JID `xml:"userId,attr" json:"jid,string"`
+	// пароль для софтфона
+	SoftPhonePwd string `xml:"softPhonePwd,attr" json:"softPhonePwd"`
 }
 
 // Logout отправляет команду о завершении пользовательской сессии.
