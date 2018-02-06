@@ -42,7 +42,7 @@ func (c *Conn) Login(login Login) (*Info, error) {
 		Push         bool     `xml:"push_ntf,attr"`
 		PushToken    string   `xml:"push_token,attr"`
 		PushClean    bool     `xml:"push_clean,attr"`
-		PushBundleID bool     `xml:"push_bundle_id,attr"`
+		PushBundleID string   `xml:"push_bundle_id,attr"`
 		Password     string   `xml:"pwd"` // заменяем пароль на хеш
 	}{Login: login, Password: passwd}
 	// отправляем команду и ожидаем ответа
