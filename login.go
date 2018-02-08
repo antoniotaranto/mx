@@ -37,13 +37,10 @@ func (c *Conn) Login(login Login) (*Info, error) {
 	}
 	// формируем команду для авторизации пользователя
 	cmd := &struct {
-		XMLName      xml.Name `xml:"loginRequest"`
-		Login                 // копируем все параметры логина
-		Push         bool     `xml:"push_ntf,attr"`
-		PushToken    string   `xml:"push_token,attr"`
-		PushClean    bool     `xml:"push_clean,attr"`
-		PushBundleID string   `xml:"push_bundle_id,attr"`
-		Password     string   `xml:"pwd"` // заменяем пароль на хеш
+		XMLName  xml.Name `xml:"loginRequest"`
+		Login             // копируем все параметры логина
+		Push     bool     `xml:"push_ntf,attr"`
+		Password string   `xml:"pwd"` // заменяем пароль на хеш
 	}{Login: login, Password: passwd}
 	// отправляем команду и ожидаем ответа
 send:
