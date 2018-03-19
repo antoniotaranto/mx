@@ -21,7 +21,7 @@ var (
 	// с сервером.
 	ConnectionTimeout = time.Second * 20
 	// ReadTimeout задает время по умолчанию дл ожидания ответа от сервера.
-	ReadTimeout = time.Second * 2
+	ReadTimeout = time.Second * 7
 	// KeepAliveDuration задает интервал для отправки keep-alive сообщений в
 	// случае простоя.
 	KeepAliveDuration = time.Minute
@@ -78,7 +78,7 @@ func (c *Conn) Done() <-chan error {
 
 // send формирует и отправляет команду на сервер. Возвращает номер отосланной
 // команды или 0, если она не была отослана.
-func (c *Conn) send(cmd interface{}) (uint32, error) {
+func (c *Conn) send(cmd interface{}) (uint16, error) {
 	// преобразуем данные команды к формату XML
 	var xmlData []byte
 	switch data := cmd.(type) {
@@ -117,7 +117,7 @@ func (c *Conn) send(cmd interface{}) (uint32, error) {
 	c.mu.Lock()
 	c.keepAlive.Reset(KeepAliveDuration)
 	c.mu.Unlock()
-	return counter, nil
+	return uint16(counter), nil
 }
 
 // buffers используется как пул буферов для формирования новых команд,
@@ -226,6 +226,7 @@ func (c *Conn) reading() error {
 		// формируем ответ
 		var resp = &Response{
 			Name: startToken.Name.Local, // название элемента
+			ID:   uint16(id),            // идентификатор команды
 			data: data[offset:],         // неразобранные данные с ответом,
 		}
 		// отдельно обрабатываем ответы на посланные команды
@@ -281,7 +282,7 @@ type Handler = func(*Response) error
 // Stop для остановки обработки событий в Handle.
 var Stop error = new(emptyError)
 
-// HandleWait вызывает переданную функцию handler для обработки все событий с
+// HandleWait вызывает переданную функцию handler для обработки всех событий с
 // названиями из списка events. timeout задает максимальное время ожидания
 // ответа от сервера. По истечение времени ожидания возвращается ошибка
 // ErrTimeout. Если timeout установлен в 0 или отрицательный, то время ожидания
@@ -333,4 +334,44 @@ func (c *Conn) HandleWait(handler Handler, timeout time.Duration,
 // Handle просто вызывает HandleWait с установленным временем ожидания 0.
 func (c *Conn) Handle(handler Handler, events ...string) error {
 	return c.HandleWait(handler, 0, events...)
+}
+
+// SendAndWaitTimeout отправляет команду и ожидает ответ с заданным именем
+// заданное количество времени.
+func (c *Conn) SendAndWaitTimeout(cmd interface{}, name string,
+	timeout time.Duration) (*Response, error) {
+	// отсылаем команду на сервер и получаем ее идентификатор
+	id, err := c.send(cmd)
+	if err != nil {
+		return nil, err
+	}
+	var event *Response
+	// ловим ответ на нашу команду, но не забываем про возможный ответ
+	// с ошибкой
+	if err := c.HandleWait(func(resp *Response) error {
+		// отдельно обрабатываем ответы с описанием ошибки
+		if resp.ID == id && resp.Name == "CSTAErrorCode" {
+			cstaError := new(CSTAError)
+			if err = event.Decode(cstaError); err == nil {
+				err = cstaError // подменяем ошибку
+			}
+			event = nil // сбрасываем данные
+			return cstaError
+		}
+		// получили нужное нам событие
+		if resp.Name == name {
+			event = resp
+			return Stop
+		}
+		// игнорируем другие ответы
+		return nil
+	}, timeout, name, "CSTAErrorCode"); err != nil {
+		return nil, err
+	}
+	return event, nil
+}
+
+// SendAndWait отправляет команду и ожидает ответ с заданным именем.
+func (c *Conn) SendAndWait(cmd interface{}, name string) (*Response, error) {
+	return c.SendAndWaitTimeout(cmd, name, ReadTimeout)
 }

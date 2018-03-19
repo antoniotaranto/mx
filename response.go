@@ -5,6 +5,7 @@ import "encoding/xml"
 // Response описывает ответ или событие, принимаемые от сервера MX.
 type Response struct {
 	Name string // название события
+	ID   uint16 // идентификатор команды
 	data []byte // не разобранное содержимое ответа
 }
 
