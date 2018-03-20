@@ -351,8 +351,8 @@ func (c *Conn) SendAndWaitTimeout(cmd interface{}, name string,
 	if err := c.HandleWait(func(resp *Response) error {
 		// отдельно обрабатываем ответы с описанием ошибки
 		if resp.ID == id && resp.Name == "CSTAErrorCode" {
-			cstaError := new(CSTAError)
-			if err = event.Decode(cstaError); err == nil {
+			var cstaError = new(CSTAError)
+			if err = resp.Decode(cstaError); err == nil {
 				err = cstaError // подменяем ошибку
 			}
 			event = nil // сбрасываем данные
