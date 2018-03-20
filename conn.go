@@ -352,15 +352,14 @@ func (c *Conn) SendAndWaitTimeout(cmd interface{}, name string,
 		// отдельно обрабатываем ответы с описанием ошибки
 		if resp.ID == id && resp.Name == "CSTAErrorCode" {
 			var cstaError = new(CSTAError)
-			if err = resp.Decode(cstaError); err == nil {
-				err = cstaError // подменяем ошибку
+			if err := resp.Decode(cstaError); err != nil {
+				return err
 			}
-			event = nil // сбрасываем данные
 			return cstaError
 		}
 		// получили нужное нам событие
+		event = resp
 		if resp.Name == name {
-			event = resp
 			return Stop
 		}
 		// игнорируем другие ответы
