@@ -29,7 +29,7 @@ var ErrTimeout error = new(timeoutError)
 
 type timeoutError struct{}
 
-func (timeoutError) Error() string   { return "timeout" }
+func (timeoutError) Error() string   { return "mx response timeout" }
 func (timeoutError) Timeout() bool   { return true }
 func (timeoutError) Temporary() bool { return true }
 

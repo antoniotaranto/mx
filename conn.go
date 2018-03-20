@@ -152,7 +152,7 @@ func (c *Conn) SendWithResponseTimeout(cmd interface{}, timeout time.Duration) (
 	)
 	// сохраняем канал для отдачи ответа в ассоциации с идентификатором
 	// отосланной команды
-	c.waitResponses.Store(id, resp)
+	c.waitResponses.Store(uint16(id), resp)
 	// ожидаем ответа или истечения времени ожидания
 	select {
 	case event = <-resp: // получен ответ от сервера
@@ -232,7 +232,7 @@ func (c *Conn) reading() error {
 		// отдельно обрабатываем ответы на посланные команды
 		if id < 9999 {
 			// проверяем, что ответом на эту команду мы интересуемся
-			if respChan, ok := c.waitResponses.Load(uint32(id)); ok {
+			if respChan, ok := c.waitResponses.Load(uint16(id)); ok {
 				respChan.(responseChan) <- resp
 			}
 		}
