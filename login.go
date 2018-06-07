@@ -18,6 +18,8 @@ type Login struct {
 	ServerType string `xml:"serverType,attr,omitempty" json:"serverType,omitempty"`
 	Platform   string `xml:"platform,attr,omitempty" json:"platform,omitempty"`
 	Version    string `xml:"version,attr,omitempty" json:"version,omitempty"`
+	LoginCapab string `xml:"loginCapab,attr,omitempty" json:"сapab,omitempty"`
+	MediaCapab string `xml:"mediaCapab,attr,omitempty" json:"mediaCapab,omitempty"`
 }
 
 // Login отправляет запрос на авторизацию пользователя.
