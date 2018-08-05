@@ -20,6 +20,7 @@ type Login struct {
 	Version    string `xml:"version,attr,omitempty" json:"version,omitempty"`
 	LoginCapab string `xml:"loginCapab,attr,omitempty" json:"сapab,omitempty"`
 	MediaCapab string `xml:"mediaCapab,attr,omitempty" json:"mediaCapab,omitempty"`
+	ABNotify   bool   `xml:"abNotify,attr,omitempty" json:"abNotify,omitempty"`
 }
 
 // Login отправляет запрос на авторизацию пользователя.
