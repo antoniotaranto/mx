@@ -4,8 +4,8 @@ import "encoding/xml"
 
 // Response описывает ответ или событие, принимаемые от сервера MX.
 type Response struct {
-	Name string // название события
-	ID   uint16 // идентификатор команды
+	ID   uint16 `json:"id"`   // идентификатор ответа
+	Name string `json:"name"` // название события
 	data []byte // не разобранное содержимое ответа
 }
 
@@ -16,3 +16,6 @@ func (r *Response) String() string { return r.Name }
 func (r *Response) Decode(v interface{}) error {
 	return xml.Unmarshal(r.data, v)
 }
+
+// responseChan описывает канал для получения ответов.
+type responseChan = chan *Response
